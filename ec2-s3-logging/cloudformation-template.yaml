@@ -1,0 +1,83 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: |
+  CloudFormation Template to create an EC2 instance and an S3 bucket.  EC2 instance will have system variables LOG_BUCKET and APP_ENV.
+
+Parameters:
+  AppEnv:
+    Description: Enter dev, staging, production
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - production
+
+  InstanceType:
+    Description: Enter t2.micro, m1.small, or m1.large. Default is t2.micro.
+    Type: String
+    Default: t2.micro
+    AllowedValues:
+      - t2.micro
+      - m1.small
+      - m1.large
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+
+  ImageId:
+    Description: Enter the AMI ID for the instance. Default is Ubuntu Server 22.04 LTS
+    Type: AWS::EC2::Image::Id
+    Default: ami-0f9de6e2d2f067fca
+
+  LogBucketNamePrefix:
+    Description: The prefix for the S3 bucket name. Default is "App"
+    Type: String
+    Default: App
+
+Resources:
+  WebServerLogBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub 
+        - "${LogBucketNamePrefix}-my-logs-${RandomGUID}"
+        - { RandomGUID: !Select [0, !Split ["-", !Select [2, !Split ["/", !Ref AWS::StackId ]]]] }
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow ssh to client host
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref ImageId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref InstanceSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${AWS::StackName}-EC2-${AppEnv}
+      UserData: !Base64
+        Fn::Sub: |
+          #!/bin/bash
+          echo "LOG_BUCKET=${WebServerLogBucket}" >> /etc/environment
+          echo "APP_ENV=${AppEnv}" >> /etc/environment
+          source /etc/environment
+
+Outputs:
+  InstanceId:
+    Description: The InstanceId of the newly created EC2 instance
+    Value: !Ref EC2Instance
+  PublicIp:
+    Description: The Public IP address of the newly created EC2 instance
+    Value: !GetAtt EC2Instance.PublicIp
+  LogBucketName:
+    Description: The name of the S3 bucket used to store logs
+    Value: !Ref WebServerLogBucket
