@@ -27,3 +27,10 @@ Follow the steps in the [main repository README](../README.md) to deploy this st
 | `InstanceId` | The ID of the EC2 instance |
 | `PublicIp`   | The public IP of the EC2 instance |
 | `LogBucketName` | Name of the S3 log bucket |
+
+## 📂 Project Structure  
+![EC2 Screenshot](structure.png)
+
+## 🔥 EC2 Instance
+![EC2 Instance](ec2-variables.png)
+
